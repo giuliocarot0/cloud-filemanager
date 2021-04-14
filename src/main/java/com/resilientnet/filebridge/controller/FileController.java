@@ -21,28 +21,32 @@ import org.springframework.web.multipart.MultipartFile;
 public class FileController {
 
     @RequestMapping(value="/upload", method = RequestMethod.PUT, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public String fileUpload(@RequestParam("file") MultipartFile file) throws  IOException{
-        File convertFile = new File(""+file.getOriginalFilename());
-        convertFile.createNewFile();
-        FileOutputStream fout = new FileOutputStream(convertFile);
-        fout.write(file.getBytes());
+    public String fileUpload(@RequestParam("file") MultipartFile bin) throws  IOException{
+        File file = new File(""+bin.getOriginalFilename());
+        file.createNewFile();
+        FileOutputStream fout = new FileOutputStream(file);
+        fout.write(bin.getBytes());
         fout.close();
         return "File is upload successfully";
     }
 
     @RequestMapping(value="/download", method = RequestMethod.GET)
-    public ResponseEntity<Object> downloadFile(@RequestParam("path") String filePath) throws IOException{
-        File file = new File("C:\\Users\\giuli\\Desktop\\filebridge\\" + filePath);
-        InputStreamResource res = new InputStreamResource(new FileInputStream(file));
-        HttpHeaders headers = new HttpHeaders();
+    public ResponseEntity<Object> downloadFile(@RequestParam("path") String filePath) throws IOException {
+        try {
+            File file = new File("C:\\Users\\giuli\\Desktop\\filebridge\\" + filePath);
+            InputStreamResource res = new InputStreamResource(new FileInputStream(file));
+            HttpHeaders headers = new HttpHeaders();
 
-        headers.add("Content-Disposition", String.format("attachment; filename=\"%s\"", file.getName()));
-        headers.add("Cache-Control", "no-cache, no-store, must-revalidate");
-        headers.add("Pragma", "no-cache");
-        headers.add("Expires", "0");
+            headers.add("Content-Disposition", String.format("attachment; filename=\"%s\"", file.getName()));
+            headers.add("Cache-Control", "no-cache, no-store, must-revalidate");
+            headers.add("Pragma", "no-cache");
+            headers.add("Expires", "0");
 
-        return ResponseEntity.ok().headers(headers).contentLength(file.length()).contentType(
-                MediaType.parseMediaType("application/binary")).body(res);
+            return ResponseEntity.ok().headers(headers).contentLength(file.length()).contentType(
+                    MediaType.parseMediaType("application/binary")).body(res);
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
     }
     /*list file*/
     @RequestMapping(value="/ls", method = RequestMethod.GET)
