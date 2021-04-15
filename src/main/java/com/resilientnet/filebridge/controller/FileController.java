@@ -3,6 +3,7 @@ import java.io.*;
 import java.net.URLConnection;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 
 import org.springframework.core.io.InputStreamResource;
@@ -54,14 +55,13 @@ public class FileController {
             Map<String, Object> fileMap;
             File file = new File("C:\\Users\\giuli\\Desktop\\filebridge\\filesystem\\" + path);
 
-            fileMap = Arrays.stream(file.list()).collect(Collectors.toMap(f->f, m->{
-                File _file = new File(m);
+            fileMap = Stream.of(file.listFiles()).collect(Collectors.toMap(File::getName, m->{
                 Map<String, String> _fileMeta = new HashMap<>();
-                if(_file.isFile()){
-                    _fileMeta.put("last_mod",(new Date(_file.lastModified()).toString()));
-                    _fileMeta.put("size",_file.length() + " B");
+                if(m.isFile()){
+                    _fileMeta.put("last_mod",(new Date(m.lastModified()).toString()));
+                    _fileMeta.put("size",m.length() + " B");
                     _fileMeta.put("type", "file");
-                    _fileMeta.put("permissions",  (_file.canWrite() ? "r":"-") +( _file.canRead()? "w":"-") + (_file.canExecute() ? "x":"-") );
+                    _fileMeta.put("permissions",  (m.canWrite() ? "r":"-") +( m.canRead()? "w":"-") + (m.canExecute() ? "x":"-") );
                 }
                 return _fileMeta;
             }));
