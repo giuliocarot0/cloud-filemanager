@@ -6,23 +6,27 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 
+import org.keycloak.KeycloakPrincipal;
+import org.keycloak.KeycloakSecurityContext;
+import org.keycloak.adapters.springsecurity.token.KeycloakAuthenticationToken;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import javax.annotation.security.RolesAllowed;
+
 
 @RestController
 public class FileController {
-
+    @RolesAllowed({"admin", "user"})
     @RequestMapping(value="/upload", method = RequestMethod.PUT, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public String fileUpload(@RequestParam("file") MultipartFile bin) throws  IOException{
-        File file = new File("filesystem/"+bin.getOriginalFilename());
+    public String fileUpload(@RequestHeader String Authorization, @RequestParam("file") MultipartFile bin) throws  IOException{
+        File file = new File(getBasicDirectory()+"/"+bin.getOriginalFilename());
         file.createNewFile();
         FileOutputStream fout = new FileOutputStream(file);
         fout.write(bin.getBytes());
@@ -30,10 +34,11 @@ public class FileController {
         return "File is upload successfully";
     }
 
+    @RolesAllowed({"admin", "user"})
     @RequestMapping(value="/download", method = RequestMethod.GET)
-    public ResponseEntity<Object> downloadFile(@RequestParam("path") String filePath) throws IOException {
+    public ResponseEntity<Object> downloadFile(@RequestHeader String Authorization, @RequestParam("path") String filePath) throws IOException {
         try {
-            File file = new File("C:\\Users\\giuli\\Desktop\\filebridge\\filesystem" + filePath);
+            File file = new File(getBasicDirectory()+ "/" + filePath);
             InputStreamResource res = new InputStreamResource(new FileInputStream(file));
             HttpHeaders headers = new HttpHeaders();
 
@@ -49,11 +54,12 @@ public class FileController {
         }
     }
     /*list file*/
+    @RolesAllowed({"admin", "user"})
     @RequestMapping(value="/ls", method = RequestMethod.GET)
-    public ResponseEntity<Object> ls(@RequestParam("path") String path) throws IOException{
+    public ResponseEntity<Object> ls(@RequestHeader String Authorization, @RequestParam("path") String path) throws IOException{
         try {
             Map<String, Object> fileMap;
-            File file = new File("C:\\Users\\giuli\\Desktop\\filebridge\\filesystem\\" + path);
+            File file = new File(getBasicDirectory() + path);
 
             fileMap = Stream.of(file.listFiles()).collect(Collectors.toMap(File::getName, m->{
                 Map<String, String> _fileMeta = new HashMap<>();
@@ -73,11 +79,12 @@ public class FileController {
     }
 
     /*delete file*/
+    @RolesAllowed({"admin", "user"})
     @RequestMapping(value="/delete", method = RequestMethod.DELETE)
-    public ResponseEntity<Object> delete(@RequestParam("path") String path) throws Exception{
+    public ResponseEntity<Object> delete(@RequestHeader String Authorization, @RequestParam("path") String path) throws Exception{
         /*creating a path list*/
         List<String> paths =  Stream.of(path.split(",")).collect(Collectors.toList());
-        String basic_path = "C:\\Users\\giuli\\Desktop\\filebridge\\filesystem\\";
+        String basic_path = getBasicDirectory()+"/";
 
         Map<String, Integer> result = new HashMap<>();
         result.put("deleted", 0);
@@ -101,9 +108,10 @@ public class FileController {
     }
 
     /*rename file*/
+    @RolesAllowed({"admin", "user"})
     @RequestMapping(value = {"/rename", "/move"}, method = RequestMethod.POST)
-    public ResponseEntity<Object> mv( @RequestParam("src_path") String src, @RequestParam("dst_path") String dst){
-        String base_path = "C:\\Users\\giuli\\Desktop\\filebridge\\filesystem\\";
+    public ResponseEntity<Object> mv(@RequestHeader String Authorization, @RequestParam("src_path") String src, @RequestParam("dst_path") String dst){
+        String base_path = getBasicDirectory()+"/";
 
         try {
             File src_f = new File(base_path+src);
@@ -119,17 +127,54 @@ public class FileController {
         }
     }
     /*copy file*/
+    @RolesAllowed({"admin", "user"})
     @RequestMapping(value = {"/copy"}, method = RequestMethod.POST)
-    public ResponseEntity<Object> cp(@RequestParam("src_path") String src, @RequestParam("dst_path") String dst) throws IOException{
-        File src_file = new File("filesystem/"+src);
-        File dst_file = new File("filesystem/"+dst);
+    public ResponseEntity<Object> cp(@RequestHeader String Authorization, @RequestParam("src_path") String src, @RequestParam("dst_path") String dst) throws IOException{
+        String base_path = getBasicDirectory()+"/";
+        File src_file = new File(base_path+src);
+        File dst_file = new File(base_path+dst);
         dst_file.createNewFile();
         FileOutputStream fout = new FileOutputStream(dst_file);
         fout.write(new FileInputStream(src_file).readAllBytes());
         fout.close();
         return ResponseEntity.ok().body("File is copied successfully");
     }
+
     /*make dir*/
-    /*remove dir*/
+    @RolesAllowed({"admin", "user"})
+    @RequestMapping(value="/createDir", method = RequestMethod.POST)
+    public ResponseEntity<Object> mkdir(@RequestHeader String Authorization, @RequestParam("path") String path){
+        File _f = new File(getBasicDirectory()+"/" + path);
+        try {
+            if(_f.mkdir())
+                return ResponseEntity.ok().body("Created");
+            else
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Path not found");
+        }catch(Exception e){
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized");
+        }
+    }
+
+    @RolesAllowed({"admin", "user"})
+    @GetMapping(value="/user_info")
+    public String user(@RequestHeader String Authorization){
+       return Subject();
+    }
+
+    private String Subject(){
+        KeycloakAuthenticationToken authentication = (KeycloakAuthenticationToken) SecurityContextHolder.getContext()
+                .getAuthentication();
+        KeycloakPrincipal<KeycloakSecurityContext> keycloakPrincipal = (KeycloakPrincipal<KeycloakSecurityContext>) authentication.getPrincipal();
+
+        return keycloakPrincipal.getName() ;
+    }
+    private String getBasicDirectory(){
+        /*check here if subject is initialized*/
+        File _s = new File("filesystem/"+ Subject());
+        if(!_s.exists())
+            _s.mkdir();
+        return _s.getAbsolutePath();
+    }
 }
+
 
