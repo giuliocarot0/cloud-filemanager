@@ -57,12 +57,11 @@ public class FileController {
 
             fileMap = Stream.of(file.listFiles()).collect(Collectors.toMap(File::getName, m->{
                 Map<String, String> _fileMeta = new HashMap<>();
-                if(m.isFile()){
-                    _fileMeta.put("last_mod",(new Date(m.lastModified()).toString()));
-                    _fileMeta.put("size",m.length() + " B");
-                    _fileMeta.put("type", "file");
-                    _fileMeta.put("permissions",  (m.canWrite() ? "r":"-") +( m.canRead()? "w":"-") + (m.canExecute() ? "x":"-") );
-                }
+                _fileMeta.put("last_mod",(new Date(m.lastModified()).toString()));
+                _fileMeta.put("size",m.length() + " B");
+                _fileMeta.put("type", m.isFile() ? "file":"directory");
+                _fileMeta.put("permissions",  (m.canWrite() ? "r":"-") +( m.canRead()? "w":"-") + (m.canExecute() ? "x":"-") );
+
                 return _fileMeta;
             }));
             return ResponseEntity.ok().body(fileMap);
@@ -76,18 +75,21 @@ public class FileController {
     /*delete file*/
     @RequestMapping(value="/delete", method = RequestMethod.DELETE)
     public ResponseEntity<Object> delete(@RequestParam("path") String path) throws Exception{
-        path = "C:\\Users\\giuli\\Desktop\\filebridge\\filesystem\\" + path;
+        /*creating a path list*/
+        List<String> paths =  Stream.of(path.split(",")).collect(Collectors.toList());
+        String basic_path = "C:\\Users\\giuli\\Desktop\\filebridge\\filesystem\\";
+
         Map<String, Integer> result = new HashMap<>();
         result.put("deleted", 0);
         result.put("ignored", 0);
         try {
-            Arrays.stream(path.split(",")).forEach(f->{
-                File _f = new File(f);
+            paths.forEach(f->{
+                    File _f = new File(basic_path + f);
+                    if (_f.delete())
+                        result.replace("deleted", result.get("deleted") + 1);
+                    else
+                        result.replace("ignored", result.get("ignored") + 1);
 
-                if(_f.delete())
-                    result.replace("deleted", result.get("deleted") + 1);
-                else
-                    result.replace("ignored", result.get("ignored") + 1);
             });
             return ResponseEntity.ok().body(result);
 
@@ -99,8 +101,34 @@ public class FileController {
     }
 
     /*rename file*/
-    /*move file*/
+    @RequestMapping(value = {"/rename", "/move"}, method = RequestMethod.POST)
+    public ResponseEntity<Object> mv( @RequestParam("src_path") String src, @RequestParam("dst_path") String dst){
+        String base_path = "C:\\Users\\giuli\\Desktop\\filebridge\\filesystem\\";
+
+        try {
+            File src_f = new File(base_path+src);
+            File dst_f = new File(base_path+dst);
+            if (!src_f.renameTo(dst_f))
+                throw new Exception("CANT_RENAME");
+            return ResponseEntity.ok().body("File moved");
+        }catch (Exception e){
+            if(e.getMessage().equals("CANT_RENAME"))
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("<h1>Can't rename or move the current file</h1>");
+            else
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("<h1>Can't found requested file </h1>");
+        }
+    }
     /*copy file*/
+    @RequestMapping(value = {"/copy"}, method = RequestMethod.POST)
+    public ResponseEntity<Object> cp(@RequestParam("src_path") String src, @RequestParam("dst_path") String dst) throws IOException{
+        File src_file = new File("filesystem/"+src);
+        File dst_file = new File("filesystem/"+dst);
+        dst_file.createNewFile();
+        FileOutputStream fout = new FileOutputStream(dst_file);
+        fout.write(new FileInputStream(src_file).readAllBytes());
+        fout.close();
+        return ResponseEntity.ok().body("File is copied successfully");
+    }
     /*make dir*/
     /*remove dir*/
 }
