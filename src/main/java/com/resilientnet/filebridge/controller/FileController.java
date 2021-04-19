@@ -25,8 +25,8 @@ import javax.annotation.security.RolesAllowed;
 public class FileController {
     @RolesAllowed({"admin", "user"})
     @RequestMapping(value="/upload", method = RequestMethod.PUT, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public String fileUpload(@RequestHeader String Authorization, @RequestParam("file") MultipartFile bin) throws  IOException{
-        File file = new File(getBasicDirectory()+"/"+bin.getOriginalFilename());
+    public String fileUpload(@RequestHeader String Authorization,@RequestParam("service") String service,@RequestParam("path") String path, @RequestParam("file") MultipartFile bin) throws  IOException{
+        File file = new File(getBasicDirectory(service)+"/"+ path + "/" +bin.getOriginalFilename());
         file.createNewFile();
         FileOutputStream fout = new FileOutputStream(file);
         fout.write(bin.getBytes());
@@ -36,9 +36,9 @@ public class FileController {
 
     @RolesAllowed({"admin", "user"})
     @RequestMapping(value="/download", method = RequestMethod.GET)
-    public ResponseEntity<Object> downloadFile(@RequestHeader String Authorization, @RequestParam("path") String filePath) throws IOException {
+    public ResponseEntity<Object> downloadFile(@RequestHeader String Authorization,@RequestParam("service") String service, @RequestParam("path") String filePath) throws IOException {
         try {
-            File file = new File(getBasicDirectory()+ "/" + filePath);
+            File file = new File(getBasicDirectory(service)+ "/" + filePath);
             InputStreamResource res = new InputStreamResource(new FileInputStream(file));
             HttpHeaders headers = new HttpHeaders();
 
@@ -56,10 +56,10 @@ public class FileController {
     /*list file*/
     @RolesAllowed({"admin", "user"})
     @RequestMapping(value="/ls", method = RequestMethod.GET)
-    public ResponseEntity<Object> ls(@RequestHeader String Authorization, @RequestParam("path") String path) throws IOException{
+    public ResponseEntity<Object> ls(@RequestHeader String Authorization,@RequestParam("service") String service, @RequestParam("path") String path) throws IOException{
         try {
             Map<String, Object> fileMap;
-            File file = new File(getBasicDirectory() + path);
+            File file = new File(getBasicDirectory(service) + path);
 
             fileMap = Stream.of(file.listFiles()).collect(Collectors.toMap(File::getName, m->{
                 Map<String, String> _fileMeta = new HashMap<>();
@@ -81,10 +81,10 @@ public class FileController {
     /*delete file*/
     @RolesAllowed({"admin", "user"})
     @RequestMapping(value="/delete", method = RequestMethod.DELETE)
-    public ResponseEntity<Object> delete(@RequestHeader String Authorization, @RequestParam("path") String path) throws Exception{
+    public ResponseEntity<Object> delete(@RequestHeader String Authorization,@RequestParam("service") String service, @RequestParam("path") String path) throws Exception{
         /*creating a path list*/
         List<String> paths =  Stream.of(path.split(",")).collect(Collectors.toList());
-        String basic_path = getBasicDirectory()+"/";
+        String basic_path = getBasicDirectory(service)+"/";
 
         Map<String, Integer> result = new HashMap<>();
         result.put("deleted", 0);
@@ -110,8 +110,8 @@ public class FileController {
     /*rename file*/
     @RolesAllowed({"admin", "user"})
     @RequestMapping(value = {"/rename", "/move"}, method = RequestMethod.POST)
-    public ResponseEntity<Object> mv(@RequestHeader String Authorization, @RequestParam("src_path") String src, @RequestParam("dst_path") String dst){
-        String base_path = getBasicDirectory()+"/";
+    public ResponseEntity<Object> mv(@RequestHeader String Authorization,@RequestParam("service") String service, @RequestParam("src_path") String src, @RequestParam("dst_path") String dst){
+        String base_path = getBasicDirectory(service)+"/";
 
         try {
             File src_f = new File(base_path+src);
@@ -129,8 +129,8 @@ public class FileController {
     /*copy file*/
     @RolesAllowed({"admin", "user"})
     @RequestMapping(value = {"/copy"}, method = RequestMethod.POST)
-    public ResponseEntity<Object> cp(@RequestHeader String Authorization, @RequestParam("src_path") String src, @RequestParam("dst_path") String dst) throws IOException{
-        String base_path = getBasicDirectory()+"/";
+    public ResponseEntity<Object> cp(@RequestHeader String Authorization,@RequestParam("service") String service, @RequestParam("src_path") String src, @RequestParam("dst_path") String dst) throws IOException{
+        String base_path = getBasicDirectory(service)+"/";
         File src_file = new File(base_path+src);
         File dst_file = new File(base_path+dst);
         dst_file.createNewFile();
@@ -143,8 +143,8 @@ public class FileController {
     /*make dir*/
     @RolesAllowed({"admin", "user"})
     @RequestMapping(value="/createDir", method = RequestMethod.POST)
-    public ResponseEntity<Object> mkdir(@RequestHeader String Authorization, @RequestParam("path") String path){
-        File _f = new File(getBasicDirectory()+"/" + path);
+    public ResponseEntity<Object> mkdir(@RequestHeader String Authorization,@RequestParam("service") String service, @RequestParam("path") String path){
+        File _f = new File(getBasicDirectory(service)+"/" + path);
         try {
             if(_f.mkdir())
                 return ResponseEntity.ok().body("Created");
@@ -168,11 +168,11 @@ public class FileController {
 
         return keycloakPrincipal.getName() ;
     }
-    private String getBasicDirectory(){
+    private String getBasicDirectory(String reqService){
         /*check here if subject is initialized*/
-        File _s = new File("filesystem/"+ Subject());
+        File _s = new File("filesystem/"+ Subject() + "/" + reqService);
         if(!_s.exists())
-            _s.mkdir();
+            _s.mkdirs();
         return _s.getAbsolutePath();
     }
 }
