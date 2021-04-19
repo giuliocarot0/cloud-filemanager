@@ -1,6 +1,5 @@
 package com.resilientnet.filebridge.controller;
 import java.io.*;
-import java.net.URLConnection;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -36,7 +35,7 @@ public class FileController {
 
     @RolesAllowed({"admin", "user"})
     @RequestMapping(value="/download", method = RequestMethod.GET)
-    public ResponseEntity<Object> downloadFile(@RequestHeader String Authorization,@RequestParam("service") String service, @RequestParam("path") String filePath) throws IOException {
+    public ResponseEntity<Object> downloadFile(@RequestHeader String Authorization,@RequestParam("service") String service, @RequestParam("path") String filePath) {
         try {
             File file = new File(getBasicDirectory(service)+ "/" + filePath);
             InputStreamResource res = new InputStreamResource(new FileInputStream(file));
@@ -56,7 +55,7 @@ public class FileController {
     /*list file*/
     @RolesAllowed({"admin", "user"})
     @RequestMapping(value="/ls", method = RequestMethod.GET)
-    public ResponseEntity<Object> ls(@RequestHeader String Authorization,@RequestParam("service") String service, @RequestParam("path") String path) throws IOException{
+    public ResponseEntity<Object> ls(@RequestHeader String Authorization,@RequestParam("service") String service, @RequestParam("path") String path){
         try {
             Map<String, Object> fileMap;
             File file = new File(getBasicDirectory(service) + path);
@@ -81,7 +80,7 @@ public class FileController {
     /*delete file*/
     @RolesAllowed({"admin", "user"})
     @RequestMapping(value="/delete", method = RequestMethod.DELETE)
-    public ResponseEntity<Object> delete(@RequestHeader String Authorization,@RequestParam("service") String service, @RequestParam("path") String path) throws Exception{
+    public ResponseEntity<Object> delete(@RequestHeader String Authorization,@RequestParam("service") String service, @RequestParam("path") String path) {
         /*creating a path list*/
         List<String> paths =  Stream.of(path.split(",")).collect(Collectors.toList());
         String basic_path = getBasicDirectory(service)+"/";
