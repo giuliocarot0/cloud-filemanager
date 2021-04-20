@@ -58,9 +58,9 @@ public class FileController {
     public ResponseEntity<Object> ls(@RequestHeader String Authorization,@RequestParam("service") String service, @RequestParam("path") String path){
         try {
             Map<String, Object> fileMap;
-            File file = new File(getBasicDirectory(service) + path);
+            File file = new File(getBasicDirectory(service) + validatePath(path));
 
-            fileMap = Stream.of(file.listFiles()).collect(Collectors.toMap(File::getName, m->{
+            fileMap = Stream.of(Objects.requireNonNull(file.listFiles())).collect(Collectors.toMap(File::getName, m->{
                 Map<String, String> _fileMeta = new HashMap<>();
                 _fileMeta.put("last_mod",(new Date(m.lastModified()).toString()));
                 _fileMeta.put("size",m.length() + " B");
@@ -72,7 +72,13 @@ public class FileController {
             return ResponseEntity.ok().body(fileMap);
         }
         catch(Exception e){
-            return ResponseEntity.notFound().build();
+            if(e.getMessage() == null)
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Not Found");
+            if(e.getMessage().equals("INVALID_PATH"))
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Rewrite path");
+            else if(e.getMessage().equals("FORBIDDEN"))
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Forbidden");
+            else return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Unknown error");
         }
 
     }
@@ -90,6 +96,7 @@ public class FileController {
         result.put("ignored", 0);
         try {
             paths.forEach(f->{
+
                     File _f = new File(basic_path + f);
                     if (_f.delete())
                         result.replace("deleted", result.get("deleted") + 1);
@@ -174,6 +181,26 @@ public class FileController {
             _s.mkdirs();
         return _s.getAbsolutePath();
     }
+
+    private String validatePath(String path) throws Exception{
+        /*user cannot access files below the service one*/
+        int back = 0, dir=0;
+        /*check if path starts with '/' */
+        if(path.charAt(0) != '/') throw new Exception("INVALID_PATH");
+        List<String> pathElements = Stream.of(path.split("/")).filter(e-> {return !e.equals("");}).collect(Collectors.toList());
+        for (String element: pathElements){
+            if(element.equals(".."))
+                back++;
+            else
+                dir++;
+        }
+
+        if ( back <=dir)
+            return path;
+        else
+            throw new Exception("FORBIDDEN");
+    }
+
 }
 
 
