@@ -93,7 +93,7 @@ public class FileController {
         result.put("ignored", 0);
         try {
             for(String f: paths){
-                    if (validatePath(f).equals(f))
+                    if (!validatePath(f).equals(f))
                         continue;
                     File _f = new File(basic_path + validatePath(f));
                     if (_f.delete())
@@ -173,7 +173,7 @@ public class FileController {
     }
     private String getBasicDirectory(String reqService){
         /*check here if subject is initialized*/
-        File _s = new File("/usr/share/resilientdrive/"+ Subject() + "/" + reqService);
+        File _s = new File("/var/usr/share/"+ Subject() + "/" + reqService);
         if(!_s.exists())
             _s.mkdirs();
         return _s.getAbsolutePath();
