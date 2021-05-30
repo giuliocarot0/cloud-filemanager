@@ -24,13 +24,21 @@ import javax.annotation.security.RolesAllowed;
 public class FileController {
     @RolesAllowed({"admin", "user"})
     @RequestMapping(value="/upload", method = RequestMethod.PUT, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public String fileUpload(@RequestHeader String Authorization,@RequestParam("service") String service,@RequestParam("path") String path, @RequestParam("file") MultipartFile bin) throws  IOException{
-        File file = new File(getBasicDirectory(service)+"/"+ path + "/" +bin.getOriginalFilename());
-        file.createNewFile();
-        FileOutputStream fout = new FileOutputStream(file);
-        fout.write(bin.getBytes());
-        fout.close();
-        return "File is upload successfully";
+    public ResponseEntity<Object> fileUpload(@RequestHeader String Authorization,@RequestParam("service") String service,@RequestParam("path") String path, @RequestParam("file") MultipartFile bin) throws  IOException{
+        try{
+            File file = new File(getBasicDirectory(service)+"/"+ path + "/" +bin.getOriginalFilename());
+            if(file.createNewFile()) {
+                FileOutputStream fout = new FileOutputStream(file);
+                fout.write(bin.getBytes());
+                fout.close();
+                return ResponseEntity.ok().build();
+            }
+            else
+                return ResponseEntity.notFound().build();
+        }catch(Exception e){
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Internal Server Error");
+
+        }
     }
 
     @RolesAllowed({"admin", "user"})
